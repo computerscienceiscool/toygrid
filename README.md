@@ -15,7 +15,7 @@ TODO
       - in order on page: DONE
           - welcome text DONE
           - editor
-            - still single-doc for now
+            - still single-doc for now DONE
       - show other demos after the editor, include a description of
         how each component enables the capabilities of a more
         full-featured session app

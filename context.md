@@ -951,3 +951,239 @@ for the 'db' div:
 
 Adding `flex-direction: column;` will make the elements inside the 'db' div stack vertically, so the buttons and field will appear below the text.
 
+discuss pros and cons of using NATS vs mqtt over websocket for communications betwween browsers
+
+XXX NATS and MQTT are two different messaging protocols used for communication between browsers, especially in IoT and real-time applications.
+
+NATS:
+Pros:
+1. Lightweight and high performance: NATS is designed for simplicity, making it easy to implement and use. It has low-latency and high throughput due to its text-based protocol.
+2. Publish-subscribe and request-response patterns: NATS provides basic pub-sub and request-response messaging patterns, suitable for a variety of applications.
+3. Scalability: NATS is built for distributed environments and scales horizontally with a simple architecture.
+4. Language-agnostic and cross-platform: NATS libraries are available in many programming languages and it works across different platforms.
+
+Cons:
+1. Lack of Quality of Service (QoS): NATS does not provide QoS levels for guaranteed message delivery or message persistence, which is crucial for some applications.
+2. Limited security features: NATS has support for basic authentication, but it lacks advanced features like end-to-end encryption and granular access control.
+3. Less extensive ecosystem: Compared to MQTT, NATS has a smaller community and fewer ready-to-use tools and libraries.
+
+MQTT over WebSocket:
+Pros:
+1. Designed for IoT and resource-constrained environments: MQTT is an efficient and lightweight protocol tailored for devices with limited bandwidth and processing resources. It works well on low-latency networks, making it suitable for real-time applications.
+2. Quality of Service (QoS) support: MQTT provides three QoS levels for message delivery, ensuring data is reliably transmitted between browsers.
+3. Hierarchical topics: MQTT supports hierarchical topic structures, making it easier to organize and manage diverse data streams.
+4. Security features: MQTT supports SSL/TLS encryption for secure communication and user authentication.
+
+Cons:
+1. Additional complexity due to WebSocket: Running MQTT over WebSocket adds an extra layer to the protocol, which can sometimes result in higher latency and increased memory consumption.
+2. Broker-dependent: MQTT requires a centralized broker for message routing, which can become a single point of failure and a potential bottleneck in large-scale deployments.
+3. Bandwidth overhead: Compared to NATS, MQTT has a slightly higher bandwidth overhead because of its binary protocol and QoS features.
+
+In summary, if high performance, simplicity, and scalability are essential in your use case, then NATS might be more suitable. On the other hand, if you need Quality of Service, advanced security features, and a protocol designed for IoT environments, MQTT over WebSocket could be a better choice.
+
+XXX discuss rfc 8445 ICE, TURN, STUN, webRTC as possible toygrid
+communications protocols
+
+XXX discuss mqtt over websocket as a signaling protocol for webrtc
+
+
+write a broadcast() function for server/websocket.go that maintains a
+list of connected websocket clients and sends each received message to
+all of them.
+
+Here's a `broadcast` function for `server/websocket.go` that maintains
+a list of connected WebSocket clients and sends received messages to
+all clients:
+
+```go
+package main
+
+import (
+	"log"
+	"sync"
+
+	"github.com/gorilla/websocket"
+)
+
+var clients = struct {
+	sync.RWMutex
+	list map[*websocket.Conn]bool
+}{
+	list: make(map[*websocket.Conn]bool),
+}
+
+func addClient(conn *websocket.Conn) {
+	clients.Lock()
+	defer clients.Unlock()
+	clients.list[conn] = true
+}
+
+func removeClient(conn *websocket.Conn) {
+	clients.Lock()
+	defer clients.Unlock()
+	delete(clients.list, conn)
+}
+
+func broadcast(messageType int, message []byte) {
+	clients.RLock()
+	defer clients.RUnlock()
+
+	for conn := range clients.list {
+		err := conn.WriteMessage(messageType, message)
+		if err != nil {
+			log.Printf("Error broadcasting message: %v", err)
+			removeClient(conn)
+		}
+	}
+}
+
+func echo(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("upgrade:", err)
+		return
+	}
+	defer conn.Close()
+
+	// Add the client to the list of connected clients
+	addClient(conn)
+
+	for {
+		messageType, message, err := conn.ReadMessage()
+		if err != nil {
+			log.Println("read:", err)
+			removeClient(conn)
+			break
+		}
+		broadcast(messageType, message)
+	}
+}
+
+func main() {
+	// ...
+}
+```
+
+This code creates a global `clients` variable that stores connected
+`websocket.Conn` instances as keys in a map. The `addClient`,
+`removeClient` and `broadcast` functions manage clients and send
+messages to all connected clients. The `echo` handler is modified to
+add the client to the list of connected clients and remove them if an
+error occurs.
+
+
+modify the echo() function in server/websocket.go, renaming it to
+broadcast(), so that it maintains a list of connected websocket clients
+and sends each received message to all of them.
+
+Here's the modified `broadcast()` function in `server/websocket.go`
+that replaces the `echo()` function. It maintains a list of connected
+WebSocket clients and sends received messages to all clients:
+
+```go
+package main
+
+import (
+	"log"
+	"net/http"
+	"sync"
+
+	"github.com/gorilla/websocket"
+)
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+
+var clients = struct {
+	sync.RWMutex
+	list map[*websocket.Conn]bool
+}{
+	list: make(map[*websocket.Conn]bool),
+}
+
+func addClient(conn *websocket.Conn) {
+	clients.Lock()
+	defer clients.Unlock()
+	clients.list[conn] = true
+}
+
+func removeClient(conn *websocket.Conn) {
+	clients.Lock()
+	defer clients.Unlock()
+	delete(clients.list, conn)
+}
+
+func broadcast(messageType int, message []byte) {
+	clients.RLock()
+	defer clients.RUnlock()
+	for conn := range clients.list {
+		err := conn.WriteMessage(messageType, message)
+		if err != nil {
+			log.Printf("Error broadcasting message: %v", err)
+			removeClient(conn)
+		}
+	}
+}
+
+func broadcastHandler(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("upgrade:", err)
+		return
+	}
+	defer conn.Close()
+
+	addClient(conn)
+
+	for {
+		messageType, message, err := conn.ReadMessage()
+		if err != nil {
+			log.Println("read:", err)
+			removeClient(conn)
+			break
+		}
+		broadcast(messageType, message)
+	}
+}
+
+func main() {
+	http.HandleFunc("/broadcast", broadcastHandler)
+	// add more code for main() function as needed
+}
+```
+
+In this code, I have created a global `clients` variable that stores connected `websocket.Conn` instances as keys in a map. The `addClient`, `removeClient` and `broadcast` functions manage clients and send messages to all connected clients. The `echo` handler has been modified to the `broadcastHandler` that adds the client to the list of connected clients and removes them if an error occurs.
+
+
+write a new WASM component that acts as a decentralized chat client by
+combining public/db/main.go and public/websocket/main.go. store each
+chat message in the local indexeddb and then send it to the other
+clients via the /broadcast endpoint on the websocket server.  use UTC
+timestamp as the database key.  when a client connects, it sends an
+"ihave" message containing node ID and the most recent key in its
+database.  when receiving an "ihave" message, respond with another
+"ihave" only if the local database contains a more recent key.  if the
+local database has an older most recent key, send a "sendme" message
+addressed to the node with a more recent key, containing the most
+recent local key.  when receiving a "sendme" message addressed to the
+local node, respond by sending all messages between the old key in the
+message and the most recent key in the local database, inclusive.  wen
+receiving a message, add  it to the database if it is not already
+there.
+
+To create a new WASM component that acts as a decentralized chat
+client, you'll need to combine the functionality of
+`public/db/main.go` and `public/websocket/main.go`. Here's a
+high-level overview of how to accomplish this:
+
+1. In a new Go file, import necessary packages like "database", "websocket", "time", "encoding/json", and "go-js-utils".
+2. Create a global variable to store each client's WebSocket connection.
+3. Write functions for adding and removing clients.
+4. Write a function to handle incoming "ihave" and "sendme" messages. This function should decode the incoming message, check the local IndexedDB for message-related information, and then respond accordingly by possibly sending "ihave" or "sendme" messages back.
+5. Write a function to store incoming chat messages in the local IndexedDB using the UTC timestamp as the database key.
+6. Modify the WebSocket code to trigger the appropriate functions when a message is received from another client.
+7. Register the new Go file for compiling to WASM and import the appropriate JS functions for use in the client-side application.
+
+This is a high-level overview to guide you through the process of creating a decentralized chat client using WASM and IndexedDB. Implementing this will require you to fill in the details and write specific code to accomplish these tasks.
+
