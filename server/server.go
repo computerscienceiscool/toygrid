@@ -22,6 +22,7 @@ func main() {
 	fs := http.FileServer(path)
 
 	http.HandleFunc("/version", version)
+	http.HandleFunc("/broadcast", broadcaster)
 	http.HandleFunc("/echo", echo)
 	http.Handle("/", fs)
 
