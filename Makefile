@@ -41,6 +41,10 @@ run:
 	killall toygrid || true
 	./toygrid ~/lab/cswg/toygrid/public 
 
+run-yjs:
+	cd ~/lab/yjs/websocket-server
+	PORT=3099 HOST=0.0.0.0 npx y-websocket
+
 deploy: build version.txt
 	rsync -e 'ssh -p 27022' -avz --delete ./ europa.d4.t7a.org:~/lab/cswg/toygrid/
 	ssh -p 27022 europa.d4.t7a.org 'cd ~/lab/cswg/toygrid && make run' 
