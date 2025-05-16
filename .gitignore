@@ -112,4 +112,5 @@ public/editor/main.js
 public/style.css
 .grok
 toygrid
-public/static/
+public/static
+nv.shada
