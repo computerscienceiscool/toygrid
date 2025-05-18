@@ -4,6 +4,43 @@ Toygrid is a proof-of-concept (PoC) microfrontend project that
 demonstrates a decentralized computing platform, with a collaborative
 editor and several other simple demo apps. 
 
+## 🧪 Development Setup
+
+This project uses [Yjs](https://yjs.dev) with a local WebSocket server for real-time collaboration via TipTap.
+
+To start everything locally:
+
+1. Make sure you have `node` and `npm` installed.
+2. Start the Yjs WebSocket server (see `~/yjs-server/server.js`):
+
+   ```bash
+   cd ~/yjs-server
+   PORT=1234 node server.js
+   ```
+
+   This server will save documents to disk in `~/yjs-server/data/`.
+
+3. In a second terminal, run the ToyGrid editor:
+
+   ```bash
+   cd ~/lab/toygrid/editor
+   REACT_APP_YJS_WEBSOCKET_SERVER_URL=ws://localhost:1234 npm start
+   ```
+
+## Development Setup Script
+
+To automate the starting of both servers on a development machine, use:
+
+[`x/tools/start-dev-toygrid-yjs-server.sh`](x/tools/start-dev-toygrid-yjs-server.sh)
+
+This will open [http://localhost:3000](http://localhost:3000) and connect to the running Yjs server.
+
+## Further Documentation
+
+See [`docs/README.md`](docs/README.md) for additional documentation.
+
+
+
 TODO
 ====
 

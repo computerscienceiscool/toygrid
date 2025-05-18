@@ -77,6 +77,16 @@ http://localhost:3000
 
 ---
 
+
+4. The Yjs WebSocket server (`yjs-server/`) includes a customized `utils.js` file with:
+- JSON file-based persistence
+- Debounced autosave
+- Timestamped logs
+
+The original file is saved as `utils_bu.js` for reference.
+
+---
+
 ## Future Directions
 
 - Deploy WebSocket server to Vesta or Europa
