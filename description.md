@@ -89,13 +89,6 @@ Web-based platform combining:
 
 ### Build tiptap 
 
-This appears to be needed by 'make tiptap' before running 'make tiptap' on laptop:
-
-```bash
-# place this in local/env
-export REACT_APP_YJS_WEBSOCKET_SERVER_URL=ws://localhost:3099
-```
-
 ### Build toygrid server binary
 
 This is handled by 'make build':
@@ -106,7 +99,7 @@ make build
 
 ## Startup Sequence
 
-### 1. Required Services
+### 1.  Start Yjs server w/websocket protocol plugin
 
 This appears to be being done by 'make run-yjs':
 
@@ -116,7 +109,12 @@ cd ~/lab/yjs/websocket-server
 PORT=3099 HOST=0.0.0.0 npx y-websocket
 ```
 
-### 2. Start Backend Server
+### 2. Start Toygrid Server
+
+```bash
+# place this in local/env on the server XXX what reads this?
+export REACT_APP_YJS_WEBSOCKET_SERVER_URL=ws://localhost:3099
+```
 
 This is handled by 'make run':
 
