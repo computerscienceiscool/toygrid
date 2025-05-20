@@ -16,7 +16,9 @@ import React, {
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
+import { IndexeddbPersistence } from 'y-indexeddb'
 import MenuBar from './MenuBar'
+
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FADB', '#B9F18D']
 // const rooms = ['rooms.50', 'rooms.51', 'rooms.52']
@@ -56,8 +58,20 @@ const getRandomName = () => getRandomElement(names)
 
 // const room = getRandomRoom()
 const room = 'cswg'
+ 
 
 const ydoc = new Y.Doc()
+const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws://localhost:3099'  // changed
+
+const websocketProvider = new WebsocketProvider(websocketUrl, 'cswg-demo', ydoc)
+const indexeddbProvider = new IndexeddbPersistence('cswg-demo', ydoc)
+
+indexeddbProvider.once('synced', () => { 
+  console.log('[IndexedDB] Document loaded from IndexedDB')
+})
+
+window.websocketProvider = websocketProvider
+window.ydoc = ydoc  // Expose Yjs doc for debugging
 
 /*
 const websocketProvider = new HocuspocusProvider({
@@ -73,9 +87,7 @@ const websocketProvider = new HocuspocusProvider({
 // on europa:
 // cd ~/lab/yjs/websocket-server; PORT=3099 HOST=0.0.0.0 npx y-websocket
 // define an env var YJS_WEBSOCKET_SERVER_URL
-const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL 
-const websocketProvider = new WebsocketProvider(websocketUrl, 'cswg-demo', ydoc)
-
+//
 const getInitialUser = () => {
   return JSON.parse(localStorage.getItem('currentUser')) || {
     name: getRandomName(),
@@ -148,5 +160,4 @@ const App = () => {
   )
 }
 
-export default App;
-
+export default App; 
