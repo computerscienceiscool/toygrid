@@ -11,20 +11,20 @@ import (
 )
 
 // a WASM component that acts as a decentralized chat client by
-// combining public/db/main.go and public/websocket/main.go. store each
-// chat message in the local indexeddb and then send it to the other
-// clients via the /broadcast endpoint on the websocket server.  use UTC
-// timestamp as the database key.  when a client connects, it sends an
-// "ihave" message containing node ID and the most recent key in its
-// database.  when receiving an "ihave" message, respond with another
-// "ihave" only if the local database contains a more recent key.  if the
-// local database has an older most recent key, send a "sendme" message
-// addressed to the node with a more recent key, containing the most
-// recent local key.  when receiving a "sendme" message addressed to the
-// local node, respond by sending all messages between the old key in the
-// message and the most recent key in the local database, inclusive.  wen
-// receiving a message, add  it to the database if it is not already
-// there.
+// combining public/db/main.go and public/websocket/main.go. store
+// each chat message in the local indexeddb and then send it to the
+// other clients via the /broadcast endpoint on the websocket server.
+// use UTC timestamp as the database key.  when a client connects, it
+// sends an "ihave" message containing node ID and the most recent key
+// in its database.  when receiving an "ihave" message, respond with
+// another "ihave" only if the local database contains a more recent
+// key.  if the local database has an older most recent key, send a
+// "sendme" message addressed to the node with a more recent key,
+// containing the most recent local key.  when receiving a "sendme"
+// message addressed to the local node, respond by sending all
+// messages between the old key in the message and the most recent key
+// in the local database, inclusive. when receiving a message, add  it
+// to the database if it is not already there.
 
 func main() {
 	Pl("WebSocket/db chat client in Go WASM")
@@ -90,7 +90,25 @@ type Message struct {
 }
 
 // onMessage processes incoming messages.
-// 4. Write a function to handle incoming "ihave" and "sendme" messages. This function should decode the incoming message, check the local IndexedDB for message-related information, and then respond accordingly by possibly sending "ihave" or "sendme" messages back.
+func onMessage(msg Message) {
+	// switch on message type
+	switch msg.Type {
+	case "text":
+		// store message in local database if it's not already there
+		// XXX
+	case "ihave":
+		// if local database has a more recent key, send "ihave"
+		// XXX
+	case "sendme":
+		// when receiving a "sendme" message addressed to the
+		// local node, respond by sending all messages between the
+		// old key in the message and the most recent key in the
+		// local database, inclusive.
+		// XXX
+	default:
+		// XXX
+	}
+}
 
 // 5. Write a function to store incoming chat messages in the local IndexedDB using the UTC timestamp as the database key.
 // 6. Modify the WebSocket code to trigger the appropriate functions when a message is received from another client.

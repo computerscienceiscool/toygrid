@@ -1,6 +1,5 @@
 TODO
 ====
-
 - DONE fix tiptap icons 
 - improve UI
     - simple demo for use in e.g. a social meetup of how this thing
@@ -17,6 +16,8 @@ TODO
           in the editor
         - goal is to describe the technology well enough for
           others to know what's doable and how to ask for it
+- backend infrastructure
+    - makerfs over websocket
 - CI/CD  
     - staging, prod servers
 - deploy to a stable URL
@@ -45,6 +46,8 @@ TODO
               doc moderator during sessions
             - ???
     - chat
+    - app that eases commenting or pull requests for a markdown doc in github
+        - e.g. makerspace playbook use case
     - workshop proposal tool
         - talks to when2meet 
     - calendar
