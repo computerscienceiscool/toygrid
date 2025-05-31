@@ -1,3 +1,4 @@
+
 import './styles.scss'
 
 // import { HocuspocusProvider } from '@hocuspocus/provider'
@@ -13,6 +14,8 @@ import React, {
   useCallback, useEffect,
   useState,
 } from 'react'
+
+import {initHelia } from './helia' // import Helia from 'helia'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
@@ -58,10 +61,13 @@ const getRandomName = () => getRandomElement(names)
 
 // const room = getRandomRoom()
 const room = 'cswg'
- 
+// FOR TESTING ONLY: placeholder group hash for Helia namespace
+// 
+const placeholderGroupHash = 'TEST_GROUP_HASH'
+
 
 const ydoc = new Y.Doc()
-const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws://localhost:3099'  // changed
+const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws:europa.d4.t7a.org:3000'  // changed
 
 const websocketProvider = new WebsocketProvider(websocketUrl, 'cswg-demo', ydoc)
 const indexeddbProvider = new IndexeddbPersistence('cswg-demo', ydoc)
@@ -96,6 +102,7 @@ const getInitialUser = () => {
 }
 
 const App = () => {
+  const [heliaNode, setHeliaNode] = useState(null)  // Helia node for IPFS
   const [status, setStatus] = useState('connecting')
   const [currentUser, setCurrentUser] = useState(getInitialUser)
 
@@ -118,6 +125,28 @@ const App = () => {
       }),
     ],
   })
+   // Initialize Helia on component mount
+   useEffect(() => {
+     initHelia(placeholderGroupHash)
+       .then(node => {
+         setHeliaNode(node)
+        // Listen for Yjs document updates and store them in Helia
+        ydoc.on('update', async update => {
+          try {
+            const cid = await node.blockstore.put(update);
+            // Store the latest CID under our test hash
+            localStorage.setItem(placeholderGroupHash, cid.toString());
+            console.log('Stored update in Helia with CID:', cid.toString());
+          } catch (e) {
+            console.error('Failed to store update in Helia:', e);
+          }
+        });
+
+       })
+       .catch(err => {
+         console.error('Helia initialization failed:', err)
+       })
+  }, [])
 
   useEffect(() => {
     // Update status changes
@@ -126,13 +155,28 @@ const App = () => {
     })
   }, [])
 
-  // Save current user to localStorage and emit to editor
+  // Save current user to localStorage and emit to editor 
   useEffect(() => {
     if (editor && currentUser) {
       localStorage.setItem('currentUser', JSON.stringify(currentUser))
       editor.chain().focus().updateUser(currentUser).run()
     }
   }, [editor, currentUser])
+    
+    // This helps track the awareness 
+    useEffect(() => {
+    if (editor && currentUser) {
+        localStorage.setItem('currentUser', JSON.stringify(currentUser))
+        editor.chain().focus().updateUser(currentUser).run()
+
+        // Explicitly set awareness state
+        websocketProvider.awareness.setLocalStateField('user', {
+        name: currentUser.name,
+        color: currentUser.color,
+        })
+    }
+    }, [editor, currentUser])
+    
 
   const setName = useCallback(() => {
     const name = (window.prompt('Name') || '').trim().substring(0, 32)
@@ -143,6 +187,10 @@ const App = () => {
   }, [currentUser])
 
   return (
+    <>
+    <div style={{ padding: '8px', background: '#f5f5f5', fontStyle: 'italic' }}>
+      {heliaNode ? 'Helia is initialized' : 'Initializing Helia…'}
+    </div>
     <div className="editor">
       {editor && <MenuBar editor={editor} />}
       <EditorContent className="editor__content" editor={editor} />
@@ -157,6 +205,7 @@ const App = () => {
           </div>
         </div>
     </div>
+    </>
   )
 }
 
