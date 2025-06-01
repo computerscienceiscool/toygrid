@@ -2,7 +2,7 @@
   "name": "collaborative-editor",
   "version": "0.1.0",
   "private": true,
-  "homepage": ".",
+  "homepage": "http://.",
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
@@ -54,5 +54,10 @@
   },
   "devDependencies": {
     "sass": "^1.56.1"
-  }
+  },
+  "description": "A proof-of-concept collaborative editor based on tiptap and yjs.",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

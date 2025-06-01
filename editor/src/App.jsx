@@ -15,6 +15,7 @@ import React, {
   useState,
 } from 'react'
 
+import { retrieveAndApplyUpdates } from './helia' // import retrieveAndApplyUpdates from './helia'
 import {initHelia } from './helia' // import Helia from 'helia'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
@@ -105,6 +106,7 @@ const App = () => {
   const [heliaNode, setHeliaNode] = useState(null)  // Helia node for IPFS
   const [status, setStatus] = useState('connecting')
   const [currentUser, setCurrentUser] = useState(getInitialUser)
+  console.log("[App] Component is rendering");
 
   const editor = useEditor({
     extensions: [
@@ -125,33 +127,47 @@ const App = () => {
       }),
     ],
   })
+
+   
+
+
+
+
+
    // Initialize Helia on component mount
    useEffect(() => {
      initHelia(placeholderGroupHash)
-       .then(node => {
+       .then(async node => {
          setHeliaNode(node)
         // Listen for Yjs document updates and store them in Helia
-        ydoc.on('update', async update => {
-          try {
-            const cid = await node.blockstore.put(update);
-            // Store the latest CID under our test hash
-            localStorage.setItem(placeholderGroupHash, cid.toString());
-            console.log('Stored update in Helia with CID:', cid.toString());
-          } catch (e) {
-            console.error('Failed to store update in Helia:', e);
-          }
-        });
+        // NEW: Load previous updates from Helia
+     await retrieveAndApplyUpdates(node, ydoc, placeholderGroupHash)
 
-       })
-       .catch(err => {
-         console.error('Helia initialization failed:', err)
-       })
-  }, [])
+      // Then listen for and store new updates
+     ydoc.on('update', async update => {
+        try {
+          const cid = await node.blockstore.put(update)
+          localStorage.setItem(placeholderGroupHash, cid.toString())
+          console.log('Stored update in Helia with CID:', cid.toString())
+        } catch (e) {
+          console.error('Failed to store update in Helia:', e)
+        }
+      })
+    })
+    .catch(err => {
+      console.error('Helia initialization failed:', err)
+    })
+}, [])
 
   useEffect(() => {
     // Update status changes
     websocketProvider.on('status', event => {
       setStatus(event.status)
+        if (event.status === 'connected') {
+            console.log('[WebSocket] Connected')
+        } else if (event.status === 'disconnected') {
+            console.log('[WebSocket] Disconnected - will attempt to reconnect')
+        }
     })
   }, [])
 

@@ -20,7 +20,9 @@
 # Start the ToyGrid frontend
 echo "[INFO] Starting ToyGrid editor..."
 cd ~/lab/toygrid/editor || { echo "[ERROR] Could not find ~/lab/toygrid/editor"; exit 1; }
-REACT_APP_YJS_WEBSOCKET_SERVER_URL=ws://europa.d4.t7a.org:3000 nohup npm start > toygrid.log 2>&1 &
+REACT_APP_YJS_WEBSOCKET_SERVER_URL=ws://localhost:3099
+
+# REACT_APP_YJS_WEBSOCKET_SERVER_URL=ws://europa.d4.t7a.org:3000 nohup npm start > toygrid.log 2>&1 &
 EDITOR_PID=$(pgrep -f "react-scripts start")
 sleep 3
 

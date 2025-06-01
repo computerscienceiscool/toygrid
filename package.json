@@ -1,1 +1,24 @@
-{}
+{
+  "name": "toygrid",
+  "description": "Toygrid is a proof-of-concept (PoC) microfrontend project that demonstrates a decentralized computing platform, with a collaborative editor and several other simple demo apps.",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/computerscienceiscool/toygrid.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/computerscienceiscool/toygrid/issues"
+  },
+  "homepage": "https://github.com/computerscienceiscool/toygrid#readme"
+}
