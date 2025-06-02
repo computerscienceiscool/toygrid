@@ -114,3 +114,20 @@ public/style.css
 toygrid
 public/static
 nv.shada
+
+# ToyGrid local logs
+toygrid.log
+yjs.log
+nohup.out
+
+# Editor-specific logs and PIDs
+.editorconfig
+*.pid
+
+# Temporary lock files used by Grok or tools
+.grok.lock
+.lock
+
+# Shell script logs or output (if redirected)
+*.out
+
