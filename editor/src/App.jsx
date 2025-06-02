@@ -1,6 +1,6 @@
 
 import './styles.scss'
-
+import { saveSnapshotToOPFS, saveSnapshotAsJSON } from './heliaSnapshot'
 // import { HocuspocusProvider } from '@hocuspocus/provider'
 import CharacterCount from '@tiptap/extension-character-count'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -22,7 +22,8 @@ import { WebsocketProvider } from 'y-websocket'
 
 import { IndexeddbPersistence } from 'y-indexeddb'
 import MenuBar from './MenuBar'
-
+window.saveSnapshotToOPFS = saveSnapshotToOPFS
+window.saveSnapshotAsJSON = saveSnapshotAsJSON
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FADB', '#B9F18D']
 // const rooms = ['rooms.50', 'rooms.51', 'rooms.52']
@@ -128,11 +129,6 @@ const App = () => {
     ],
   })
 
-   
-
-
-
-
 
    // Initialize Helia on component mount
    useEffect(() => {
@@ -171,6 +167,28 @@ const App = () => {
     })
   }, [])
 
+const [wasDisconnected, setWasDisconnected] = useState(false)
+
+  useEffect(() => {
+    let timeout
+    websocketProvider.on('status', event => {
+      setStatus(event.status)
+      if (event.status === 'connected') {
+        console.log('[WebSocket] Connected')
+        setWasDisconnected(false)
+        clearTimeout(timeout)
+      } else if (event.status === 'disconnected') {
+        console.log('[WebSocket] Disconnected - will attempt to reconnect')
+        timeout = setTimeout(() => {
+          setWasDisconnected(true)
+        }, 5000)
+      }
+    })
+
+  return () => clearTimeout(timeout)
+}, [])
+  
+
   // Save current user to localStorage and emit to editor 
   useEffect(() => {
     if (editor && currentUser) {
@@ -207,6 +225,12 @@ const App = () => {
     <div style={{ padding: '8px', background: '#f5f5f5', fontStyle: 'italic' }}>
       {heliaNode ? 'Helia is initialized' : 'Initializing Helia…'}
     </div>
+    {wasDisconnected && (
+      <div style={{ backgroundColor: '#ffe0e0', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>
+        WebSocket has been disconnected for over 5 seconds.
+        Changes may not sync until reconnected.
+      </div>
+    )}
     <div className="editor">
       {editor && <MenuBar editor={editor} />}
       <EditorContent className="editor__content" editor={editor} />
@@ -214,7 +238,7 @@ const App = () => {
           <div className={`editor__status editor__status--${status}`}>
             {status === 'connected'
               ? `${editor.storage.collaborationCursor.users.length} user${editor.storage.collaborationCursor.users.length === 1 ? '' : 's'} online in ${room}`
-              : 'offline'}
+              : 'Connection list.  Reconnecting....'}
           </div>
           <div className="editor__name">
             <button onClick={setName}>{currentUser.name}</button>

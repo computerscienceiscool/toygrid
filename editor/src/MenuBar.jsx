@@ -6,6 +6,40 @@ import MenuItem from './MenuItem'
 
 const menuBar = ({ editor }) => {
   const items = [
+
+
+   {
+      icon: 'save-3-line',
+      title: 'Save Snapshot',
+      action: async () => {
+        try {
+          const filename = await window.saveSnapshotToOPFS(window.ydoc)
+          const timestamp = new Date().toLocaleTimeString()
+          alert(`Snapshot saved at ${timestamp} as ${filename}`)
+        } catch (err) {
+          alert('Failed to save snapshot.')
+        }
+      },
+    },
+    {
+      type: 'divider',
+    },
+   {
+      icon: 'file-2-line',
+      title: 'Save Snapshot (JSON)',
+      action: async () => {
+         try {
+          const filename = await window.saveSnapshotAsJSON(window.ydoc)
+          const timestamp = new Date().toLocaleTimeString()
+          alert(`JSON snapshot saved at ${timestamp} as ${filename}`)
+         } catch (err) {
+          alert('Failed to save JSON snapshot.')
+        }
+      },
+    },
+     
+
+
     {
       icon: 'bold',
       title: 'Bold',
