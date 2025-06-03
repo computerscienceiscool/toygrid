@@ -1,91 +1,119 @@
 
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ------------------------------------------------------------------------------
-# Script: start-dev-toygrid-react.sh
+# File: x/tools/start-dev-toygrid-react.sh
 # Description:
-#   Starts the ToyGrid collaborative editor using react-scripts (port 3000)
-#   and optionally starts the Yjs WebSocket server (port 3099) locally.
+#   From the project root, this single script:
+#     1) Kills any process on port 3099, then installs+starts y-websocket
+#     2) Kills any process on port 3000, then installs+starts the React editor
+#   Cleans up y-websocket on exit.
 #
 # Usage:
-#   ./x/tools/start-dev-toygrid-react.sh
+#   cd ~/lab/toygrid
+#   x/tools/start-dev-toygrid-react.sh
 #
 # Requirements:
-#   - ToyGrid project at ~/lab/toygrid
-#   - Yjs server located at ~/yjs-server/server.js
-#   - Ports 3000 (ToyGrid) and 3099 (Yjs) must be available
+#   - ToyGrid code at ~/lab/toygrid
+#   - No other shell scripts in root—only this under x/tools.
+#   - Ports 3099 (y-websocket) and 3000 (React) free or will be freed.
+#   - Commands: bash, lsof, node, npm on PATH.
 # ------------------------------------------------------------------------------
 
-# === CONFIG ===
-TOYGRID_DIR="$HOME/lab/toygrid"
-EDITOR_DIR="$TOYGRID_DIR/editor"
-YJS_SERVER_DIR="$HOME/yjs-server"
+set -euo pipefail
+
+# === CONFIGURATION ===
+ROOT_DIR="$HOME/lab/toygrid"
+EDITOR_DIR="$ROOT_DIR/editor"
 YJS_PORT=3099
 TOYGRID_PORT=3000
-REACT_APP_YJS_WEBSOCKET_SERVER_URL="ws://localhost:$YJS_PORT"
+YJS_LOG="$ROOT_DIR/yjs.log"
+NODE_CMD=$(command -v node)
+NPM_CMD=$(command -v npm)
+LSOF_CMD=$(command -v lsof)
 
-# === UTILITY ===
-function check_port() {
-  if lsof -i ":$1" > /dev/null; then
-    echo "[WARN] Port $1 is already in use. Check for conflicts."
-    lsof -i ":$1"
-    return 1
+# === UTILITY FUNCTIONS ===
+
+log() {
+  printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+kill_port() {
+  local port=$1
+  if "$LSOF_CMD" -i ":$port" &> /dev/null; then
+    local pid
+    pid=$("$LSOF_CMD" -t -i ":$port" | head -n1)
+    if [[ -n "$pid" ]]; then
+      log "Port $port is in use by PID $pid; killing it."
+      kill -9 "$pid" || true
+      log "Killed PID $pid on port $port."
+    fi
   else
-    echo "[OK] Port $1 is available."
-    return 0
+    log "Port $port is free."
   fi
 }
 
-# === STEP 1: Start Yjs WebSocket Server ===
-echo "[STEP 1] Starting Yjs WebSocket server on port $YJS_PORT..."
-check_port $YJS_PORT || {
-  echo "[ERROR] Yjs port $YJS_PORT is in use. Aborting."
-  exit 1
+cleanup() {
+  if [[ -n "${YJS_PID-}" ]] && ps -p "$YJS_PID" &> /dev/null; then
+    log "Stopping y-websocket (PID: $YJS_PID)..."
+    kill "$YJS_PID" || true
+    wait "$YJS_PID" 2>/dev/null || true
+    log "OK: y-websocket stopped."
+  fi
 }
+trap cleanup EXIT
 
-cd "$YJS_SERVER_DIR" || {
-  echo "[ERROR] Could not find $YJS_SERVER_DIR"
+# === MAIN ===
+
+log "Starting ToyGrid dev (y-websocket + React) from x/tools..."
+
+# Step 1: Kill any existing y-websocket on YJS_PORT
+log "STEP 1: Freeing port $YJS_PORT for y-websocket"
+kill_port "$YJS_PORT"
+
+# Ensure editor folder exists
+if [[ ! -d "$EDITOR_DIR" ]]; then
+  log "ERROR: Cannot find editor folder at $EDITOR_DIR"
   exit 1
-}
+fi
+cd "$EDITOR_DIR"
 
-PORT=$YJS_PORT node server.js &
+# Ensure y-websocket is installed (pin to 1.4.5)
+if [[ ! -d "node_modules/y-websocket" ]]; then
+  log "Installing y-websocket@1.4.5 in editor/..."
+  "$NPM_CMD" install y-websocket@1.4.5
+fi
+
+# Launch y-websocket via PORT env (no --port flag)
+: > "$YJS_LOG"
+log "Launching y-websocket server via: PORT=$YJS_PORT $NODE_CMD node_modules/y-websocket/bin/server.js"
+PORT="$YJS_PORT" "$NODE_CMD" node_modules/y-websocket/bin/server.js &> "$YJS_LOG" &
 YJS_PID=$!
 sleep 2
 
-if ! ps -p $YJS_PID > /dev/null; then
-  echo "[ERROR] Failed to launch Yjs server."
-  echo "Recent log lines (if any):"
-  tail -n 10 yjs.log
+if ! ps -p "$YJS_PID" &> /dev/null; then
+  log "ERROR: y-websocket failed to start. Check $YJS_LOG"
   exit 1
 fi
+log "OK: y-websocket running (PID: $YJS_PID, log: $YJS_LOG)"
 
-echo "[OK] Yjs server running (PID: $YJS_PID) at ws://localhost:$YJS_PORT"
-echo
+# Step 2: Kill any existing React on TOYGRID_PORT
+log "STEP 2: Freeing port $TOYGRID_PORT for React editor"
+kill_port "$TOYGRID_PORT"
 
-# === STEP 2: Launch ToyGrid Editor ===
-echo "[STEP 2] Launching ToyGrid editor (react-scripts) on port $TOYGRID_PORT..."
-check_port $TOYGRID_PORT || {
-  echo "[ERROR] ToyGrid port $TOYGRID_PORT is in use. Aborting."
-  kill $YJS_PID
-  exit 1
-}
+# Ensure React dependencies are installed
+if [[ ! -d "node_modules" ]]; then
+  log "Installing React editor dependencies..."
+  "$NPM_CMD" install
+fi
 
-cd "$EDITOR_DIR" || {
-  echo "[ERROR] Could not find editor at $EDITOR_DIR"
-  kill $YJS_PID
-  exit 1
-}
+# Export env vars so React picks up WebSocket URL + port
+export REACT_APP_YJS_WEBSOCKET_SERVER_URL="ws://127.0.0.1:$YJS_PORT"
+export PORT="$TOYGRID_PORT"
+log "INFO: React will use WS URL: $REACT_APP_YJS_WEBSOCKET_SERVER_URL"
 
-# Export the environment variable so the editor connects to Yjs
-export REACT_APP_YJS_WEBSOCKET_SERVER_URL="$REACT_APP_YJS_WEBSOCKET_SERVER_URL"
-echo "[INFO] Using Yjs URL: $REACT_APP_YJS_WEBSOCKET_SERVER_URL"
-echo
+# Run CRA in foreground; on ^C cleanup() will kill y-websocket
+"$NPM_CMD" start
 
-# Run in foreground so errors are visible
-npm start
-
-# === CLEANUP INSTRUCTIONS ===
-echo
-echo "[INFO] ToyGrid exited. Cleaning up Yjs server..."
-kill $YJS_PID && echo "[OK] Yjs server stopped (PID: $YJS_PID)"
-echo "[DONE] All services stopped."
+log "React exited; cleaning up y-websocket..."
+# cleanup trap runs here

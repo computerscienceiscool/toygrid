@@ -1,10 +1,10 @@
-
 import './styles.scss'
 import { saveSnapshotToOPFS, saveSnapshotAsJSON } from './heliaSnapshot'
 // import { HocuspocusProvider } from '@hocuspocus/provider'
 import CharacterCount from '@tiptap/extension-character-count'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+// import { CollaborationCursor as YjsCollaborationCursor } from 'y-cursors'
 import Highlight from '@tiptap/extension-highlight'
 import TaskItem from '@tiptap/extension-task-item'
 import TaskList from '@tiptap/extension-task-list'
@@ -69,9 +69,16 @@ const placeholderGroupHash = 'TEST_GROUP_HASH'
 
 
 const ydoc = new Y.Doc()
-const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws:europa.d4.t7a.org:3000'  // changed
+//const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws:europa.d4.t7a.org:3000'  // Europa server
+// const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws://localhost:3099'
+const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws://127.0.0.1:3099'  // testing This ensures the browser connects explicitly over IPv4 to 127.0.0.1, avoiding any IPv6/hostname resolution quirks.
+
 
 const websocketProvider = new WebsocketProvider(websocketUrl, 'cswg-demo', ydoc)
+// window.toygridCursor = new CollaborationCursor(websocketProvider.awareness);
+window._yWebsocketProvider = websocketProvider
+window._toygridAwareness = websocketProvider.awareness
+
 const indexeddbProvider = new IndexeddbPersistence('cswg-demo', ydoc)
 
 indexeddbProvider.once('synced', () => { 
@@ -106,7 +113,23 @@ const getInitialUser = () => {
 const App = () => {
   const [heliaNode, setHeliaNode] = useState(null)  // Helia node for IPFS
   const [status, setStatus] = useState('connecting')
-  const [currentUser, setCurrentUser] = useState(getInitialUser)
+  const [currentUser, setCurrentUser] = useState(getInitialUser())
+  // Whenever local awareness “user” changes, copy it into React state:
+  useEffect(() => {
+    const onAwarenessChange = () => {
+      const local = window._toygridAwareness.getLocalState()
+      if (local?.user && local.user.name !== currentUser.name) {
+        setCurrentUser({ name: local.user.name, color: local.user.color })
+      }
+    }
+
+    window._toygridAwareness.on('change', onAwarenessChange)
+    return () => {
+      window._toygridAwareness.off('change', onAwarenessChange)
+    }
+  }, [currentUser])
+  
+//  const [currentUser, setCurrentUser] = useState(getInitialUser)
   console.log("[App] Component is rendering");
 
   const editor = useEditor({
@@ -190,28 +213,19 @@ const [wasDisconnected, setWasDisconnected] = useState(false)
   
 
   // Save current user to localStorage and emit to editor 
+  // Whenever currentUser changes, persist + update editor + awareness:
   useEffect(() => {
     if (editor && currentUser) {
       localStorage.setItem('currentUser', JSON.stringify(currentUser))
       editor.chain().focus().updateUser(currentUser).run()
-    }
-  }, [editor, currentUser])
-    
-    // This helps track the awareness 
-    useEffect(() => {
-    if (editor && currentUser) {
-        localStorage.setItem('currentUser', JSON.stringify(currentUser))
-        editor.chain().focus().updateUser(currentUser).run()
-
-        // Explicitly set awareness state
-        websocketProvider.awareness.setLocalStateField('user', {
+      // Write React’s currentUser into awareness
+      websocketProvider.awareness.setLocalStateField('user', {
         name: currentUser.name,
         color: currentUser.color,
-        })
-    }
-    }, [editor, currentUser])
+      })
+     }
+   }, [editor, currentUser])
     
-
   const setName = useCallback(() => {
     const name = (window.prompt('Name') || '').trim().substring(0, 32)
 
@@ -236,9 +250,11 @@ const [wasDisconnected, setWasDisconnected] = useState(false)
       <EditorContent className="editor__content" editor={editor} />
       <div className="editor__footer">
           <div className={`editor__status editor__status--${status}`}>
-            {status === 'connected'
-              ? `${editor.storage.collaborationCursor.users.length} user${editor.storage.collaborationCursor.users.length === 1 ? '' : 's'} online in ${room}`
-              : 'Connection list.  Reconnecting....'}
+            {status === 'connected' && (
+               `${editor.storage.collaborationCursor.users.length} user${editor.storage.collaborationCursor.users.length === 1 ? '' : 's'} online in ${room}`)
+            }
+            {status === 'connecting' && 'Connecting to server...'}
+            {status === 'disconnected' && 'Disconnected from server. Reconnecting...'}
           </div>
           <div className="editor__name">
             <button onClick={setName}>{currentUser.name}</button>
