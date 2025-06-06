@@ -131,3 +131,4 @@ nohup.out
 # Shell script logs or output (if redirected)
 *.out
 
+package-lock.json

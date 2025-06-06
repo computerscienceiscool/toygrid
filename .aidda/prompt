@@ -1,7 +1,7 @@
-evaluate
+Default SERVER to "localhost" if not set
 
-Evaluate the given code and describe what each component does and how
-to start all needed servers.
+if the SERVER environment variable is not set and not provided
+on the Make command line, default it to "localhost".
 
 Sysmsg: 
   You are an expert Go programmer. Please make the requested changes
@@ -12,31 +12,6 @@ Sysmsg:
   string literals.  Do not remove or alter comments unless they are
   incorrect or misleading.
 In: 
-    public//ckversion.js
-    public//wasmgo.js
-    public//db/main.js
-    public//style.css
-    public//static/css/main.38502dcc.css
-    editor/src//App.jsx
-    public//go/main.go
-    public//db/main.go
     Makefile
-    public//layout.css
-    public//go/main.js
-    editor/public//index.html
-    editor/src//MenuBar.scss
-    public//javascript/main.js
-    editor/src//styles.scss
-    editor/src//MenuBar.jsx
-    public//websocket/main.go
-    server//websocket.go
-    editor/public//robots.txt
-    public//wasm_exec.js
-    public//chat/main.go
-    server//server.go
-    editor/src//MenuItem.scss
-    editor/src//index.js
-    public//index.html
-    public//websocket/main.js
 Out:
-    description.md
+    /tmp/Makefile

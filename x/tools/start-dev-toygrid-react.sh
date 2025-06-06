@@ -23,7 +23,7 @@
 set -euo pipefail
 
 # === CONFIGURATION ===
-ROOT_DIR="$HOME/lab/toygrid"
+ROOT_DIR="$PWD"
 EDITOR_DIR="$ROOT_DIR/editor"
 YJS_PORT=3099
 TOYGRID_PORT=3000
@@ -31,6 +31,12 @@ YJS_LOG="$ROOT_DIR/yjs.log"
 NODE_CMD=$(command -v node)
 NPM_CMD=$(command -v npm)
 LSOF_CMD=$(command -v lsof)
+
+if [ ! -d "$ROOT_DIR/editor" ] 
+then
+  echo "ERROR: cd to repo base (e.g. ~/lab/toygrid) first" 
+  exit 1
+fi
 
 # === UTILITY FUNCTIONS ===
 

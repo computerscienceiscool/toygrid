@@ -1,155 +1,106 @@
-<think>
-Okay, let's tackle this. The user wants an evaluation of the provided code and documentation, explaining each component and how to start the servers. 
+File: /tmp/Makefile
+```make
+wasm_srcs := $(wildcard public/**/*.go)
+wasm_objs := $(subst .go,.wasm,$(wasm_srcs))
 
-First, I need to understand the project structure. Looking at the files, it's a web application with Go WASM components, a React-based editor, and a Go server. The Makefile indicates build steps for WASM and the editor, and deployment via rsync.
+tiptap_srcs := $(wildcard editor/build/static/js/*) 
 
-The main components seem to be:
-1. **Client-side Code**: Includes JavaScript for version checking (ckversion.js), WASM integration (wasmgo.js), and microfrontends for database (db), Go (go), and websocket (websocket). The editor is a React app using TipTap for collaborative editing.
-2. **Server-side**: A Go HTTP server (server.go) handling static files, version checks, and WebSocket communication (websocket.go).
-3. **Build Process**: Managed by a Makefile that compiles Go to WASM, builds the React editor, and deploys.
+SERVER ?= localhost
 
-Now, to explain each component:
+# ifndef SERVER
+# 	$(error SERVER is not set. Please set it to your server name, e.g., "europa" or "localhost".)
+# endif
 
-- **ckversion.js**: Checks for updates by fetching '/version' and reloads if the version changes. This ensures clients have the latest code without stale cache.
-- **wasmgo.js**: Initializes Go WASM modules. It's used by other components to load and run their respective WASM files.
-- **Database (db)**: Uses IndexedDB via Go WASM to store data. The UI allows adding entries and dumping the database.
-- **WebSocket**: Both client and server code for real-time communication. The client is in Go WASM, connecting to the server's WebSocket endpoints.
-- **Editor**: A collaborative text editor built with React and TipTap, using Yjs for real-time collaboration through WebSocketProvider.
+config := local/config-$(SERVER).sh
 
-For starting servers, the Makefile has a 'run' target that starts the Go server. The editor might need a separate start command, but since it's built into static files, the main server serves it. The WebSocket server is part of the Go server, handling '/echo' and '/broadcast' endpoints.
+.PHONY: all build clean tiptap-static version.txt
 
-Potential issues to note: The editor requires a Yjs WebSocket server, which the current setup might not include. The provided server has WebSocket handlers, but I need to confirm if it's set up correctly for Yjs. Also, environment variables like REACT_APP_YJS_WEBSOCKET_SERVER_URL must be set for the editor to connect to the correct WebSocket server.
+all: 
+	@echo say "'make start'" or "'make stop'"
 
-Deployment uses 'make deploy', which rsyncs the code to a server and runs it. Local setup would involve running 'make build' followed by './toygrid' to start the server.
+# starts Yjs and the toygrid http/websocket Go server
+start: stop start-yjs start-toygrid status
 
-Testing each component: Ensure all WASM modules load, the editor connects, and WebSocket communication works. The version endpoint should return the current version to trigger reloads when updated.
+stop: stop-toygrid stop-yjs
 
-Finally, compile all this into a clear, structured explanation, making sure to highlight how each part interacts and the steps to run everything properly.
-</think>
+stop-yjs:
+	kill $$(lsof -i :3099 | awk '{print $$2}' | tail -1) || true
 
-File: /home/stevegt/lab/cswg/toygrid/description.md
-```markdown
-# ToyGrid Platform Components
+# start the Yjs websocket server.  this will fail if it's already running.
+start-yjs:
+	cd ~/lab/yjs/websocket-server && PORT=3099 HOST=0.0.0.0 npx y-websocket &
 
-## Core Architecture
-Web-based platform combining:
-- Go WebAssembly (WASM) modules
-- React-based collaborative editor
-- Microfrontend architecture
-- Real-time collaboration using CRDTs (Yjs)
-- Browser-based persistence (IndexedDB)
+status:
+	# XXX we can show status here but would want to turn port numbers etc. into variables first
 
-## Key Components
+# build WASM modules, http/websocket server Go code, # not tiptap static site
+build: $(wasm_objs) toygrid # tiptap-static
 
-### 1. Version Management (`ckversion.js`)
-```javascript
-// Client-side version checking
-- Checks `/version` endpoint for updates
-- Uses localStorage to track versions
-- Forces full reload on version mismatch
-- Prevents stale cache issues
+# wildcard rule to build all the WASM modules from $(wasm_objs)
+%.wasm: %.go
+	# build WASM module
+	GOOS=js GOARCH=wasm go build -o $@ $<
+	# tinygo build -o $@ -target wasm $<
+	# tinygo build -o $@ -target wasm -no-debug $<
+	#
+	# copy the VERSION SPECIFIC THIS IS STUPID javascript shim from the
+	# version of go that was used to compile the WASM module above.  
+	# THIS IS STILL STUPID and Steve has a proposal he never submitted to fix this.
+	# For PromiseGrid, we will need to maintain our own equivalent,
+	# version-agnostic, wasm_exec.js becasue Steve got distracted.  Or else
+	# we finish and push that proposal through the Go dev pipeline.
+	cp `go env GOROOT`/misc/wasm/wasm_exec.js public/wasm_exec.js
+	# cp `tinygo env TINYGOROOT`/targets/wasm_exec.js public/wasm_exec.js
+
+# Build the static site.  This is what gets served by the http/websocket server
+# when you say `make run`.  Here, we pre-build some stuff that the tiptap npm
+# start would normally do, but we don't start the HTTP server that npm start
+# would normally do, because we have our own HTTP server that we start with the
+# start-toygrid stanza below.
+#
+# Note that you need to have REACT_APP_YJS_WEBSOCKET_SERVER_URL set
+# correctly in a local/config-something.sh, e.g.: 
+# export REACT_APP_YJS_WEBSOCKET_SERVER_URL=ws://europa.d4.t7a.org:3099
+tiptap-static: 
+	@echo you need to set/change $(config) -- right now it says
+	cat $(config)
+	cd editor && npm install
+	. $(config) && cd editor && npm run build
+	# XXX this is messy -- all editor stuff should instead land in public/editor
+	cp editor/build/static/js/main.*.js public/editor/main.js
+	cp editor/build/static/css/main.*.css public/style.css
+	mkdir -p public/editor/static
+	rsync -av editor/build/static/ public/static/
+
+clean:
+	rm -f $(wasm_objs)
+	# XXX clean out editor stuff
+
+# build the http/websocket binary.  This is what gets served by the http/websocket server
+# when you say `make run`.
+toygrid: server/server.go server/websocket.go
+	cd server && go build -o ../toygrid
+
+# This needs to be run any time we change the site.  A new version number will
+# cause any open browser tabs to automatically reload.  Maybe.
+version.txt:
+	# just use a timestamp for now
+	date '+%s' > version.txt
+
+stop-toygrid:
+	# kill it if it's already running, otherwise continue
+	killall toygrid || true
+
+# This starts the http/websocket server that is written in go
+start-toygrid: stop-toygrid
+	# start the toygrid http and websocket server that is written in Go
+	./toygrid ~/lab/cswg/toygrid/public &
+
+# DO NOT RUN THIS.  Steve used it to let him develop on his laptop and ship
+# things to europa without going through git because he was lazy.  We can adapt
+# this for you later.  We're prefixing it with XXX for safety for now.
+XXXdeploy: build version.txt
+	rsync -e 'ssh -p 27022' -avz --delete ./ europa.d4.t7a.org:~/lab/cswg/toygrid/
+	ssh -p 27022 europa.d4.t7a.org 'cd ~/lab/cswg/toygrid && make run' 
 ```
-
-### 2. WASM Loader (`wasmgo.js`)
-```javascript
-// Universal WASM initialization
-- Standardizes Go WASM instantiation
-- Supports multiple WASM modules
-- Handles async loading
-```
-
-### 3. Database Interface (`db/main.go`)
-```go
-// IndexedDB wrapper
-- Browser-based key-value storage
-- CRUD operations via Go WASM
-- UI controls for data management
-- Automatic crash reporting
-```
-
-### 4. Collaborative Editor (`App.jsx`)
-```jsx
-// Real-time collaborative editor
-- TipTap ProseMirror base
-- Yjs CRDT backend
-- Presence indicators
-- Multi-user cursors
-- Rich text formatting
-```
-
-### 5. WebSocket System (`websocket.go`)
-```go
-// Real-time communication
-- Broadcast messaging
-- Client management
-- Echo service
-- Connection pooling
-```
-
-### 6. Build System (`Makefile`)
-```makefile
-# Unified build pipeline
-- WASM compilation
-- React editor build
-- Deployment automation
-- Version tracking
-```
-
-## Server Components
-
-### 1. Main Server (`server/server.go`)
-```go
-// Core services
-- Static file server
-- Version endpoint
-- WebSocket endpoints:
-  - /echo (debug)
-  - /broadcast (pub/sub)
-- Port 9073 by default
-```
-
-### 2. WebSocket Hub (`websocket.go`)
-```go
-// Real-time features
-- Connection management
-- Message broadcasting
-- Presence tracking
-- Graceful error handling
-```
-
-## Startup Sequence
-
-### 1. Start Backend Server
-```bash
-make build && ./toygrid ~/lab/cswg/toygrid/public
-```
-
-### 2. Required Services
-```bash
-# Yjs WebSocket Server (separate terminal)
-cd ~/lab/yjs/websocket-server
-PORT=3099 HOST=0.0.0.0 npx y-websocket
-
-# Main Application Server (from Makefile)
-- Serves static assets
-- Handles WebSocket connections
-- Provides version endpoint
-```
-
-### 3. Environment Setup
-```bash
-# Editor WebSocket config
-export REACT_APP_YJS_WEBSOCKET_SERVER_URL=ws://localhost:3099
-```
-
-## Runtime Characteristics
-- Single-page application (SPA) architecture
-- Automatic cache busting
-- Multi-user collaboration
-- Browser-based persistence
-- Graceful error recovery
-- Cross-component version sync
-```
-
-<references>
-</references>
+EOF_/tmp/Makefile
