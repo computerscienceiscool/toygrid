@@ -6,6 +6,8 @@ tiptap_srcs := $(wildcard editor/build/static/js/*)
 SERVER ?= localhost
 configfn := local/config-$(SERVER).sh
 
+httpdir := $(shell pwd)/public
+
 .PHONY: all build clean tiptap-static version.txt
 
 all: 
@@ -21,7 +23,7 @@ all:
 
 # starts Yjs and the toygrid http/websocket Go server
 start: stop start-yjs start-toygrid status
-	sleep 2
+	sleep 3
 	@echo "toygrid listening on http://$(SERVER):9073"
 
 stop: stop-toygrid stop-yjs
@@ -104,7 +106,7 @@ stop-toygrid:
 # This starts the http/websocket server that is written in go
 start-toygrid: stop-toygrid
 	# start the toygrid http and websocket server that is written in Go
-	./toygrid ~/lab/cswg/toygrid/public &
+	./toygrid $(httpdir) &
 
 # DO NOT RUN THIS.  Steve used it to let him develop on his laptop and ship
 # things to europa without going through git because he was lazy.  We can adapt
