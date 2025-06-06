@@ -87,30 +87,41 @@ Web-based platform combining:
 - Graceful error handling
 ```
 
-## Startup Sequence
+### Build tiptap 
 
-### 1. Start Backend Server
+### Build toygrid server binary
+
+This is handled by 'make build':
+
 ```bash
-make build && ./toygrid ~/lab/cswg/toygrid/public
+make build 
 ```
 
-### 2. Required Services
+## Startup Sequence
+
+### 1.  Start Yjs server w/websocket protocol plugin
+
+This appears to be being done by 'make run-yjs':
+
 ```bash
 # Yjs WebSocket Server (separate terminal)
 cd ~/lab/yjs/websocket-server
 PORT=3099 HOST=0.0.0.0 npx y-websocket
-
-# Main Application Server (from Makefile)
-- Serves static assets
-- Handles WebSocket connections
-- Provides version endpoint
 ```
 
-### 3. Environment Setup
+### 2. Start Toygrid Server
+
 ```bash
-# Editor WebSocket config
+# place this in local/env on the server XXX what reads this?
 export REACT_APP_YJS_WEBSOCKET_SERVER_URL=ws://localhost:3099
 ```
+
+This is handled by 'make run':
+
+```bash
+./toygrid ~/lab/cswg/toygrid/public
+```
+
 
 ## Runtime Characteristics
 - Single-page application (SPA) architecture
