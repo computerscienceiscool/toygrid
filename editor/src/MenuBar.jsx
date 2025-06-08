@@ -39,7 +39,7 @@ const menuBar = ({ editor }) => {
      
 {
   icon: 'folder-open-line',
-  title: 'Load Snapshot (JSON)',
+  title: 'Load Snapshot',
   action: async () => {
     try {
       const input = document.createElement('input')

@@ -80,6 +80,7 @@ const placeholderGroupHash = 'TEST_GROUP_HASH'
 
 
 const ydoc = new Y.Doc()
+window.ydoc = ydoc  // Expose Yjs doc for debugging
 //const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws:europa.d4.t7a.org:3000'  // Europa server
 // const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws://localhost:3099'
 const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws://127.0.0.1:3099'  // testing This ensures the browser connects explicitly over IPv4 to 127.0.0.1, avoiding any IPv6/hostname resolution quirks.
@@ -114,6 +115,13 @@ window.applySnapshotToYdoc = (json, ydoc) => {
 
     Y.applyUpdate(ydoc, update)
     console.log('[applySnapshotToYdoc] Snapshot applied successfully.')
+    if (window.editor) {
+    window.editor.commands.focus()
+    window.editor.commands.setContent(window.editor.getHTML(), false)
+}
+
+
+
   } catch (err) {
     console.error('[applySnapshotToYdoc] Failed to apply snapshot:', err)
     alert('Failed to apply snapshot: ' + err.message)
