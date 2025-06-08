@@ -1,5 +1,7 @@
 import './styles.scss'
 import { saveSnapshotToOPFS, saveSnapshotAsJSON } from './heliaSnapshot'
+// import { applySnapshotToYdoc } from './heliaSnapshot.js'
+import { loadSnapshotFromOPFS, applySnapshotToYdoc } from './heliaSnapshot.js'
 // import { HocuspocusProvider } from '@hocuspocus/provider'
 import CharacterCount from '@tiptap/extension-character-count'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -24,6 +26,15 @@ import { IndexeddbPersistence } from 'y-indexeddb'
 import MenuBar from './MenuBar'
 window.saveSnapshotToOPFS = saveSnapshotToOPFS
 window.saveSnapshotAsJSON = saveSnapshotAsJSON
+
+window.loadSnapshotToYdoc = async () => {
+  const json = await loadSnapshotFromOPFS()
+  if (json) {
+    applySnapshotToYdoc(json, ydoc)
+  }
+}
+
+
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FADB', '#B9F18D']
 // const rooms = ['rooms.50', 'rooms.51', 'rooms.52']
@@ -88,6 +99,29 @@ indexeddbProvider.once('synced', () => {
 window.websocketProvider = websocketProvider
 window.ydoc = ydoc  // Expose Yjs doc for debugging
 
+// Expose IndexedDB provider for debugging
+window.applySnapshotToYdoc = (json, ydoc) => {
+  try {
+    if (!json || !Array.isArray(json.update)) {
+      throw new Error('Invalid snapshot format: "update" field missing or not an array.')
+    }
+
+    const update = Uint8Array.from(json.update)
+
+    if (!(ydoc instanceof Y.Doc)) {
+      throw new Error('Target ydoc is not a valid Y.Doc instance.')
+    }
+
+    Y.applyUpdate(ydoc, update)
+    console.log('[applySnapshotToYdoc] Snapshot applied successfully.')
+  } catch (err) {
+    console.error('[applySnapshotToYdoc] Failed to apply snapshot:', err)
+    alert('Failed to apply snapshot: ' + err.message)
+  }
+}
+
+
+
 /*
 const websocketProvider = new HocuspocusProvider({
   url: 'wss://connect.hocuspocus.cloud',
@@ -145,6 +179,7 @@ const App = () => {
       }),
       Collaboration.configure({
         document: ydoc,
+        field: 'prosemirror', 
       }),
       CollaborationCursor.configure({
         provider: websocketProvider,
@@ -226,13 +261,14 @@ const [wasDisconnected, setWasDisconnected] = useState(false)
      }
    }, [editor, currentUser])
     
-  const setName = useCallback(() => {
-    const name = (window.prompt('Name') || '').trim().substring(0, 32)
+const setName = useCallback(() => {
+  const name = (window.prompt('Name') || '').trim().substring(0, 32)
 
-    if (name) {
-      return setCurrentUser({ ...currentUser, name })
-    }
-  }, [currentUser])
+  if (name) {
+    setCurrentUser({ ...currentUser, name })
+  }
+}, [currentUser])
+
 
   return (
     <>

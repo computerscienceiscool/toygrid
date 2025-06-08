@@ -6,8 +6,7 @@ import MenuItem from './MenuItem'
 
 const menuBar = ({ editor }) => {
   const items = [
-
-
+   
    {
       icon: 'save-3-line',
       title: 'Save Snapshot',
@@ -38,7 +37,58 @@ const menuBar = ({ editor }) => {
       },
     },
      
+{
+  icon: 'folder-open-line',
+  title: 'Load Snapshot (JSON)',
+  action: async () => {
+    try {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'application/json'
 
+      input.onchange = async () => {
+        const file = input.files[0]
+        if (!file) return
+
+        const text = await file.text()
+        const json = JSON.parse(text)
+
+        const Y = await import('yjs')
+        const update = Uint8Array.from(json.update)     
+
+
+        // Reuse the existing ydoc instead of replacing it
+        if (window.ydoc) {
+          Y.applyUpdate(window.ydoc, update)
+          alert('Snapshot loaded successfully.')
+        } else {
+          alert('Yjs document not initialized.')
+        }
+      }
+
+      input.click()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to load snapshot.')
+    }
+  },
+},
+
+{
+  icon: 'eye-line',
+  title: 'Show Current Snapshot',
+  action: async () => {
+    try {
+      const snapshot = window.ydoc.toJSON();
+      const pretty = JSON.stringify(snapshot, null, 2);
+      alert('Current Snapshot:\n' + pretty.substring(0, 1000) + (pretty.length > 1000 ? '...\n\n(Truncated)' : ''));
+      console.log('[Snapshot JSON]', snapshot);
+    } catch (err) {
+      alert('Could not read Y.Doc snapshot.');
+      console.error('Error reading ydoc snapshot:', err);
+    }
+  },
+},
 
     {
       icon: 'bold',

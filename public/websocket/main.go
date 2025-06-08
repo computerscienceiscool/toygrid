@@ -53,6 +53,8 @@ func main() {
 	defer c.Close(websocket.StatusInternalError, "websocket closed")
 
 	i := 0
+	return // Stops the loop. // YYY
+
 	for {
 		i += 1
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
