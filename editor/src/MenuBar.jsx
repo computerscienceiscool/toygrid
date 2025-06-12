@@ -1,7 +1,7 @@
 import './MenuBar.scss'
 
 import React, { Fragment } from 'react'
-
+import { applySnapshotToYdoc } from './heliaSnapshot'
 import MenuItem from './MenuItem'
 
 const menuBar = ({ editor }) => {
@@ -52,8 +52,10 @@ const menuBar = ({ editor }) => {
 
         const text = await file.text()
         const json = JSON.parse(text)
+        
+        applySnapshotToYdoc(json, window.ydoc)
 
-        const Y = await import('yjs')
+       /* const Y = await import('yjs')
         const update = Uint8Array.from(json.update)     
 
 
@@ -63,7 +65,7 @@ const menuBar = ({ editor }) => {
           alert('Snapshot loaded successfully.')
         } else {
           alert('Yjs document not initialized.')
-        }
+        }*/
       }
 
       input.click()

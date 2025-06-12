@@ -30,7 +30,8 @@ window.saveSnapshotAsJSON = saveSnapshotAsJSON
 window.loadSnapshotToYdoc = async () => {
   const json = await loadSnapshotFromOPFS()
   if (json) {
-    applySnapshotToYdoc(json, ydoc)
+    applySnapshotToYdoc(json)
+    window.rebindEditorToYdoc()
   }
 }
 
@@ -79,7 +80,7 @@ const room = 'cswg'
 const placeholderGroupHash = 'TEST_GROUP_HASH'
 
 
-const ydoc = new Y.Doc()
+let ydoc = new Y.Doc()
 window.ydoc = ydoc  // Expose Yjs doc for debugging
 //const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws:europa.d4.t7a.org:3000'  // Europa server
 // const websocketUrl = process.env.REACT_APP_YJS_WEBSOCKET_SERVER_URL || 'ws://localhost:3099'
@@ -98,8 +99,8 @@ indexeddbProvider.once('synced', () => {
 })
 
 window.websocketProvider = websocketProvider
-window.ydoc = ydoc  // Expose Yjs doc for debugging
 
+/*  // This function applies a JSON snapshot to a Y.Doc instance and is already done in heliaSnapshot.js.  Commenting out to test if this works.
 // Expose IndexedDB provider for debugging
 window.applySnapshotToYdoc = (json, ydoc) => {
   try {
@@ -127,7 +128,7 @@ window.applySnapshotToYdoc = (json, ydoc) => {
     alert('Failed to apply snapshot: ' + err.message)
   }
 }
-
+*/
 
 
 /*
@@ -174,7 +175,52 @@ const App = () => {
 //  const [currentUser, setCurrentUser] = useState(getInitialUser)
   console.log("[App] Component is rendering");
 
-  const editor = useEditor({
+    // Initialize the Tiptap editor 
+    // Let the editor be null initially
+    //
+
+   const editor = useEditor({
+     extensions: [
+       StarterKit.configure({ history: false }),
+       Highlight,
+       TaskList,
+       TaskItem,
+       CharacterCount.configure({ limit: 10000 }),
+       Collaboration.configure({
+         document: window.ydoc,
+         field: 'prosemirror',
+       }),
+       CollaborationCursor.configure({
+         provider: websocketProvider,
+       }),
+     ],
+   })
+   
+
+
+   useEffect(() => {
+     if (!editor) return
+
+     window.rebindEditorToYdoc = () => {
+       editor.commands.setContent('')
+
+       const collaborationExtension = editor.extensionManager.extensions.find(
+         ext => ext.name === 'collaboration'
+       )
+       if (collaborationExtension) {
+         collaborationExtension.options.document = window.ydoc
+         console.log('[App] Editor re-bound to updated window.ydoc')
+       } else {
+         console.warn('[App] Collaboration extension not found.')
+       }
+
+       editor.commands.focus()
+       editor.commands.setContent(editor.getHTML(), false)
+     }
+   }, [editor])
+   
+
+/*  const editor = useEditor({
     extensions: [
       StarterKit.configure({
         history: false,
@@ -194,7 +240,7 @@ const App = () => {
       }),
     ],
   })
-
+*/
 
    // Initialize Helia on component mount
    useEffect(() => {
@@ -308,5 +354,5 @@ const setName = useCallback(() => {
     </>
   )
 }
-
+window.applySnapshotToYdoc = applySnapshotToYdoc
 export default App; 

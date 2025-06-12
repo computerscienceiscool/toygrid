@@ -15,8 +15,8 @@ export async function saveSnapshotToOPFS(ydoc) {
     const update = Y.encodeStateAsUpdate(ydoc)
 
     // STEP 2: Construct a timestamped filename for the binary update
-    const now = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `snapshot-${now}-update.bin`
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const filename = `snapshot-${timestamp}-update.bin`
 
     // STEP 3: Access the browser's Origin Private FileSystem (OPFS)
     const root = await navigator.storage.getDirectory()
@@ -37,13 +37,14 @@ export async function saveSnapshotToOPFS(ydoc) {
   }
 }
 
-// Save a JSON-encoded Yjs update snapshot
+// Save a Yjs update snapshot
 export async function saveSnapshotAsJSON(ydoc) {
   try {
     const update = Y.encodeStateAsUpdate(ydoc)
+
     const json = { update: Array.from(update) }
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `snapshot-${timestamp}.json`
+    const filename = `snapshot-${timestamp}.ysnap.json`
     const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' })
 
     const a = document.createElement('a')
@@ -55,6 +56,35 @@ export async function saveSnapshotAsJSON(ydoc) {
     URL.revokeObjectURL(a.href)
 
     console.log('[Snapshot] Downloaded Yjs update snapshot as', filename)
+
+    // also downloading a txt file at the same time.....
+    // comment out this block to disable the txt file download
+   /* 
+    try {
+
+
+
+      const ytext = ydoc.getText('prosemirror')
+      console.log('[DEV] Text to save:', ytext.toString())
+          const textContent = ytext.toString()
+      const textBlob = new Blob([textContent], { type: 'text/plain' })
+
+      const textLink = document.createElement('a')
+      textLink.href = URL.createObjectURL(textBlob)
+      textLink.download = `snapshot-${timestamp}.txt`
+      document.body.appendChild(textLink)
+      textLink.click()
+      document.body.removeChild(textLink)
+      URL.revokeObjectURL(textLink.href)
+
+      console.log('[Snapshot] Also exported plain text version of document.')
+    } catch (textErr) {
+      console.warn('[Snapshot] Could not export plain text:', textErr)
+    }
+    */ // end of text file download block
+      
+
+
     return filename
   } catch (err) {
     console.error('Failed to save snapshot as JSON:', err)
@@ -94,40 +124,52 @@ export async function loadSnapshotFromOPFS() {
 }
 
 
-
-
-
-// Apply a Yjs update snapshot (from JSON) to a Y.Doc
-export function applySnapshotToYdoc(json, ydoc) {
+// This function applies a JSON snapshot to a fresh Y.Doc instance
+export function applySnapshotToYdoc(json) {
   try {
+    // STEP 1: Validate snapshot format
     if (!json || !Array.isArray(json.update)) {
       throw new Error('Invalid snapshot format: "update" field missing or not an array.')
     }
 
+    // STEP 2: Convert JSON update into a Uint8Array
     const update = Uint8Array.from(json.update)
 
-    if (!(ydoc instanceof Y.Doc)) {
-      throw new Error('Target ydoc is not a valid Y.Doc instance.')
+    // STEP 3: Create a new Y.Doc and apply the update
+    const newYdoc = new Y.Doc()
+    Y.applyUpdate(newYdoc, update)
+    window.ydoc = newYdoc
+
+    // STEP 4: Read document content
+    const ytext = newYdoc.getText('prosemirror')
+    const after = ytext.toString()
+    console.log('[Snapshot] Loaded Y.Doc content:', after)
+
+    if (!after || after.trim().length === 0) {
+      console.warn('[Snapshot] Document is empty after applying snapshot.')
+      alert('Snapshot applied, but document is empty.')
+    } else {
+      console.log('[Snapshot] Snapshot applied successfully.')
+      alert('Snapshot applied. Editor should now be updated.')
     }
 
-    Y.applyUpdate(ydoc, update)
-    ydoc.emit('update', update)
+    // STEP 5: Rebind the editor if available
+    if (window.editor && typeof window.rebindEditorToYdoc === 'function') {
+      // Prefer a dedicated rebind function if defined
+      window.rebindEditorToYdoc(newYdoc)
+      console.log('[Snapshot] Rebound editor to new Y.Doc using rebindEditorToYdoc().')
+    } else if (window.editor) {
+      // Fallback: forcibly overwrite the content
+      const html = window.editor.getHTML()
+      window.editor.commands.setContent(html, false)
+      console.warn('[Snapshot] Editor was not rebound — fallback content sync used.')
+    } else {
+      console.warn('[Snapshot] No editor instance found to rebind.')
+    }
 
-
-
-  //  ydoc.emit('update', Y.encodeStateAsUpdate(ydoc)); // Notify listeners of the update
-    console.log('[applySnapshotToYdoc] Snapshot applied successfully.')
-    alert('Snapshot applied and editor should be updated.')    
   } catch (err) {
     console.error('[applySnapshotToYdoc] Failed to apply snapshot:', err)
     alert('Failed to apply snapshot: ' + err.message)
   }
 }
 
-// Load a snapshot from OPFS and apply it to a Yjs document
-export async function loadSnapshotToYdoc(ydoc) {
-  const json = await loadSnapshotFromOPFS()
-  if (json) {
-    applySnapshotToYdoc(json, ydoc)
-  }
-}
