@@ -120,6 +120,7 @@ export async function loadSnapshotFromOPFS() {
     console.error('Failed to load snapshot:', err);
     alert('Failed to load snapshot.');
     return null;
+
   }
 }
 
@@ -138,6 +139,20 @@ export function applySnapshotToYdoc(json) {
     // STEP 3: Create a new Y.Doc and apply the update
     const newYdoc = new Y.Doc()
     Y.applyUpdate(newYdoc, update)
+     
+  /*
+     * TODO try something like this instead:
+     *
+    var res = Y.applyUpdate(newYdoc, update)
+    // dunno if null means success or what
+    if (res != null) {
+      alert("applyUpdate failed: " + res) 
+    }
+    */
+      
+
+    
+
     window.ydoc = newYdoc
 
     // STEP 4: Read document content
